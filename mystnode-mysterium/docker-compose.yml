@@ -21,7 +21,7 @@ services:
       APP_PORT: 8080
 
   node:
-    image: ghcr.io/cooperwang-py/mystnode:1.39.7
+    image: ghcr.io/cooperwang-py/mystnode:1.39.7@sha256:88d8a00d2964527647d4259dd3e6d20d948ce94b00c034f819faad0562207952
     restart: on-failure
     # tini as PID 1 forwards SIGTERM to the supervisor, which stops myst.
     init: true
@@ -53,7 +53,7 @@ services:
       - ${APP_DATA_DIR}/data/web:/umbrel-web:ro
 
   web:
-    image: ghcr.io/cooperwang-py/mystnode:1.39.7
+    image: ghcr.io/cooperwang-py/mystnode:1.39.7@sha256:88d8a00d2964527647d4259dd3e6d20d948ce94b00c034f819faad0562207952
     user: "1000:1000"
     restart: on-failure
     init: true

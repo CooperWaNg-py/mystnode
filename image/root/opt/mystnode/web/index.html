@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mysterium Node</title>
+  <!-- Served at /umbrel/; assets are relative (static/…). Every other path on
+       this origin belongs to NodeUI, so the dashboard never uses "/" itself. -->
+  <link rel="icon" href="static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+  <header id="topbar">
+    <img id="logo" src="static/icon.svg" alt="" width="32" height="32">
+    <h1>Mysterium Node</h1>
+    <span id="status-pill" class="pill offline" role="status">Offline</span>
+    <span class="grow"></span>
+    <a id="open-nodeui" class="button" href="/" target="_blank" rel="noopener">Open NodeUI</a>
+  </header>
+
+  <main id="content">
+    <div id="view-loading" class="center-view">
+      <div class="spinner" aria-hidden="true"></div>
+      <p id="loading-text" class="muted">Connecting…</p>
+    </div>
+
+    <!-- Step 1 of the boot sequence: the node does not start before this. -->
+    <section id="view-terms" class="center-view" hidden>
+      <div class="card terms-card">
+        <h2>Before the node starts</h2>
+        <p>Running a Mysterium node makes your Umbrel an exit node: other people's VPN and data-scraping traffic leaves the internet through your home IP address. You must accept Mysterium's terms before the node starts.</p>
+        <ul class="links">
+          <li><a href="https://github.com/mysteriumnetwork/node/blob/master/TERMS_EXIT_NODE.md" target="_blank" rel="noopener noreferrer">Exit node terms</a></li>
+          <li><a href="https://github.com/mysteriumnetwork/node/blob/master/TERMS_END_USER.md" target="_blank" rel="noopener noreferrer">End user terms</a></li>
+        </ul>
+        <label class="check-label">
+          <input id="terms-check" type="checkbox">
+          <span>I have read and accept the Mysterium Network terms, including future versions accepted automatically when the node updates</span>
+        </label>
+        <button id="terms-accept" class="primary wide" disabled>Accept and start node</button>
+      </div>
+    </section>
+
+    <div id="view-app" hidden>
+      <nav id="tabs" aria-label="Sections">
+        <a href="#overview" data-tab="overview">Overview</a>
+        <a href="#services" data-tab="services">Services</a>
+        <a href="#earnings" data-tab="earnings">Earnings</a>
+        <a href="#sessions" data-tab="sessions">Sessions</a>
+        <a href="#settings" data-tab="settings">Settings</a>
+        <a href="#logs" data-tab="logs">Logs</a>
+      </nav>
+
+      <!-- Step 2: terms accepted, node not answering (first start or restart). -->
+      <div id="view-starting" class="center-view" hidden>
+        <div class="spinner" aria-hidden="true"></div>
+        <p>Starting the node… this can take up to a minute on first start.</p>
+        <p><a href="#logs">View the node log</a></p>
+      </div>
+
+      <div id="view-identity" class="center-view" hidden>
+        <div class="spinner" aria-hidden="true"></div>
+        <p>Creating identity…</p>
+      </div>
+
+      <!-- ------------------------------------------------------ overview -->
+      <section id="tab-overview" class="panel" hidden>
+        <div class="grid">
+          <div class="card">
+            <h2>Node</h2>
+            <dl class="kv">
+              <dt>Version</dt><dd id="ov-version">–</dd>
+              <dt>Uptime</dt><dd id="ov-uptime">–</dd>
+              <dt>Identity</dt><dd class="row"><code id="ov-identity" class="ellipsis">–</code><button id="ov-identity-copy" class="small" type="button">Copy</button></dd>
+              <dt>NAT type</dt><dd id="ov-nat">checking…</dd>
+              <dt>Monitoring</dt><dd id="ov-monitoring">–</dd>
+              <dt>Quality</dt><dd id="ov-quality">–</dd>
+              <dt>Online</dt><dd id="ov-online">–</dd>
+            </dl>
+          </div>
+
+          <div class="card">
+            <h2>Earnings</h2>
+            <dl class="kv">
+              <dt>Unsettled</dt><dd id="ov-unsettled">–</dd>
+              <dt>Lifetime</dt><dd id="ov-lifetime">–</dd>
+              <dt>Balance</dt><dd id="ov-balance">–</dd>
+            </dl>
+            <p><a href="#earnings">Earnings and payouts →</a></p>
+          </div>
+
+          <div class="card span-2">
+            <h2>Setup checklist</h2>
+            <ol class="checklist">
+              <li id="chk-terms" class="done">
+                <span class="mark" aria-hidden="true"></span>
+                <div class="grow">
+                  <div class="title">Terms accepted</div>
+                </div>
+              </li>
+              <li id="chk-registration">
+                <span class="mark" aria-hidden="true"></span>
+                <div class="grow">
+                  <div class="title">Identity registration</div>
+                  <div id="reg-text" class="muted">–</div>
+                  <div id="reg-actions" class="row" hidden>
+                    <button id="reg-button" class="primary" type="button">Register</button>
+                    <span id="reg-info" class="muted"></span>
+                  </div>
+                </div>
+              </li>
+              <li id="chk-mmn">
+                <span class="mark" aria-hidden="true"></span>
+                <div class="grow">
+                  <div class="title">Link with mystnodes.com</div>
+                  <div class="row wrap">
+                    <span id="mmn-text" class="muted">–</span>
+                    <button id="mmn-remove" class="danger small" type="button" hidden>Remove key</button>
+                  </div>
+                  <div class="row">
+                    <button id="mmn-claim" type="button">Claim on mystnodes.com</button>
+                  </div>
+                  <form id="mmn-form" class="row" novalidate>
+                    <input id="mmn-key" type="text" class="grow" autocomplete="off" spellcheck="false"
+                           placeholder="or paste an API key" aria-label="mystnodes.com API key">
+                    <button type="submit">Save key</button>
+                  </form>
+                  <div id="mmn-error" class="error" role="alert" hidden></div>
+                  <div class="muted hint">There is no API to check a claim made through the link; check my.mystnodes.com.</div>
+                </div>
+              </li>
+              <li id="chk-wallet">
+                <span class="mark" aria-hidden="true"></span>
+                <div class="grow">
+                  <div class="title">Payout wallet</div>
+                  <div id="wallet-text" class="muted">–</div>
+                </div>
+              </li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------ services -->
+      <section id="tab-services" class="panel" hidden>
+        <div class="card">
+          <h2>Services</h2>
+          <ul id="svc-list" class="svc-list"></ul>
+          <div id="svc-error" class="error" role="alert" hidden></div>
+          <p class="muted hint">Changes are saved and survive restarts.</p>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------ earnings -->
+      <section id="tab-earnings" class="panel" hidden>
+        <div class="grid">
+          <div class="card">
+            <h2>Balances</h2>
+            <dl class="kv">
+              <dt>Unsettled</dt><dd id="er-unsettled">–</dd>
+              <dt>Lifetime</dt><dd id="er-lifetime">–</dd>
+              <dt>Balance</dt><dd id="er-balance">–</dd>
+            </dl>
+            <h3>By service</h3>
+            <dl class="kv">
+              <dt>Public (WireGuard)</dt><dd id="er-public">–</dd>
+              <dt>B2B data transfer</dt><dd id="er-data-transfer">–</dd>
+              <dt>B2B data scraping</dt><dd id="er-scraping">–</dd>
+              <dt>VPN (dVPN)</dt><dd id="er-dvpn">–</dd>
+            </dl>
+          </div>
+
+          <div class="card">
+            <h2>Settle</h2>
+            <dl class="kv">
+              <dt>Settlement fee</dt><dd id="er-fee">–</dd>
+            </dl>
+            <button id="er-settle" class="primary wide" type="button" disabled>Settle now</button>
+            <p class="muted hint">The node settles automatically when unsettled earnings reach 5 MYST and the fee is under 5 %, and always above 20 MYST.</p>
+          </div>
+
+          <div class="card span-2">
+            <h2>Daily earnings (30 days)</h2>
+            <div id="er-chart" class="chart"></div>
+          </div>
+
+          <div class="card span-2">
+            <h2>Payout wallet</h2>
+            <dl class="kv">
+              <dt>Saved</dt><dd><code id="er-ben-stored">–</code></dd>
+              <dt>On-chain</dt><dd><code id="er-ben-chain">–</code></dd>
+              <dt id="er-ben-status-label" hidden>Change</dt><dd id="er-ben-status" hidden></dd>
+            </dl>
+            <form id="er-ben-form" class="row" novalidate>
+              <input id="er-ben-input" type="text" class="grow" autocomplete="off" spellcheck="false"
+                     placeholder="0x… wallet address" aria-label="Payout wallet address">
+              <button type="submit" class="primary">Save</button>
+            </form>
+            <div id="er-ben-error" class="error" role="alert" hidden></div>
+            <div id="er-ben-saved" class="note" hidden>Saved. It is written on-chain with the next settlement — use Settle now to apply it immediately.</div>
+          </div>
+
+          <div class="card span-2">
+            <h2>Settlement history</h2>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Date</th><th class="num">Amount</th><th class="num">Fees</th><th>Beneficiary</th><th>Transaction</th><th>Error</th></tr>
+                </thead>
+                <tbody id="er-history"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------ sessions -->
+      <section id="tab-sessions" class="panel" hidden>
+        <div class="grid">
+          <div class="card">
+            <h2>All time</h2>
+            <dl class="kv">
+              <dt>Sessions</dt><dd id="ss-count">–</dd>
+              <dt>Consumers</dt><dd id="ss-consumers">–</dd>
+              <dt>Sent</dt><dd id="ss-sent">–</dd>
+              <dt>Received</dt><dd id="ss-received">–</dd>
+              <dt>Duration</dt><dd id="ss-duration">–</dd>
+              <dt>Earned</dt><dd id="ss-tokens">–</dd>
+            </dl>
+          </div>
+          <div class="card">
+            <h2>Daily traffic (30 days)</h2>
+            <div id="ss-chart" class="chart"></div>
+          </div>
+          <div class="card span-2">
+            <h2>Sessions</h2>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Started</th><th>Service</th><th>Country</th><th class="num">Duration</th><th class="num">Traffic</th><th class="num">Earned (MYST)</th><th>Status</th></tr>
+                </thead>
+                <tbody id="ss-table"></tbody>
+              </table>
+            </div>
+            <div class="row pager">
+              <button id="ss-prev" type="button" disabled>‹ Previous</button>
+              <span id="ss-page" class="muted grow center"></span>
+              <button id="ss-next" type="button" disabled>Next ›</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------ settings -->
+      <section id="tab-settings" class="panel" hidden>
+        <div class="grid">
+          <form id="st-form" class="card" novalidate>
+            <h2>Node settings</h2>
+            <label class="field">
+              <span>Log level</span>
+              <select id="st-log-level">
+                <option value="trace">trace</option>
+                <option value="debug">debug</option>
+                <option value="info">info</option>
+                <option value="warn">warn</option>
+                <option value="error">error</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>UDP port range</span>
+              <input id="st-udp-ports" type="text" autocomplete="off" spellcheck="false" placeholder="10000:60000">
+              <span id="st-udp-ports-error" class="error" hidden></span>
+            </label>
+            <label class="check-label">
+              <input id="st-shaper-enabled" type="checkbox">
+              <span>Limit bandwidth (traffic shaper)</span>
+            </label>
+            <label class="field">
+              <span>Bandwidth limit (KB/s)</span>
+              <input id="st-shaper-bandwidth" type="number" min="1" step="1" inputmode="numeric" placeholder="6250">
+              <span id="st-shaper-bandwidth-error" class="error" hidden></span>
+            </label>
+            <button id="st-save" type="submit" class="primary wide">Save</button>
+            <div id="st-saved" class="note" hidden>Saved. Restart the node to apply.</div>
+            <div id="st-error" class="error" role="alert" hidden></div>
+          </form>
+
+          <div class="card">
+            <h2>Restart</h2>
+            <p class="muted">Restarts the Mysterium node process. Services, identity and earnings are kept.</p>
+            <button id="st-restart" type="button" class="danger wide">Restart node</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------------------------------------------------------- logs -->
+      <section id="tab-logs" class="panel" hidden>
+        <div class="card logs-card">
+          <div class="row wrap toolbar">
+            <label class="inline">Lines
+              <select id="lg-lines">
+                <option value="200">200</option>
+                <option value="500" selected>500</option>
+                <option value="2000">2000</option>
+              </select>
+            </label>
+            <label class="inline">Level
+              <select id="lg-level">
+                <option value="all">all</option>
+                <option value="info" selected>info</option>
+                <option value="warn">warn</option>
+                <option value="error">error</option>
+              </select>
+            </label>
+            <label class="inline check-label">
+              <input id="lg-auto" type="checkbox" checked>
+              <span>Auto-refresh</span>
+            </label>
+            <span class="grow"></span>
+            <button id="lg-refresh" type="button">Refresh</button>
+            <a id="lg-download" class="button" href="/umbrel/api/logs/download" download>Download</a>
+          </div>
+          <div id="lg-meta" class="muted"></div>
+          <pre id="lg-text"></pre>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="toasts" aria-live="polite"></div>
+
+  <script src="static/app.js"></script>
+</body>
+</html>

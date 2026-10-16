@@ -1,0 +1,70 @@
+version: "3.7"
+
+# One image, two entrypoints, split on privilege:
+#   node - root, host network, NET_ADMIN: runs myst (via mystnode.supervisor)
+#   web  - uid 1000, Umbrel's bridge network: the dashboard on :8080, which
+#          reverse-proxies the stock NodeUI and serves the widget endpoint
+#
+# The image is published as a multi-arch manifest list (linux/amd64 + linux/arm64)
+# by .github/workflows/publish-image.yml. Pin the INDEX digest here -- not a
+# per-platform digest, or one architecture will fail to pull:
+#   docker buildx imagetools inspect ghcr.io/cooperwang-py/mystnode:1.39.7
+
+services:
+  # Required stub: umbrelOS only merges its app_proxy fragment if the service is
+  # declared here, and it reads APP_HOST/APP_PORT with readFromEnvOrTerminate —
+  # a missing value makes the proxy exit immediately. The host is the injected
+  # container name <app-id>_<service>_1.
+  app_proxy:
+    environment:
+      APP_HOST: mystnode-mysterium_web_1
+      APP_PORT: 8080
+
+  node:
+    image: ghcr.io/cooperwang-py/mystnode:1.39.7
+    restart: on-failure
+    # tini as PID 1 forwards SIGTERM to the supervisor, which stops myst.
+    init: true
+    # myst tears down its WireGuard interfaces and iptables rules on shutdown.
+    stop_grace_period: 30s
+    # Upstream requires --net host: WireGuard tunnels and NAT traversal (UDP hole
+    # punching on the udp.ports range) need the host's real interfaces.
+    network_mode: host
+    cap_add:
+      - NET_ADMIN               # interfaces, routes, iptables
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    # NodeUI (:4449) binds only to this host-gateway address, never 0.0.0.0:
+    # with host networking a wildcard bind would publish it on every LAN
+    # interface and bypass Umbrel's login. TequilAPI (:4050) stays on its
+    # default 127.0.0.1 -- desktop myst does not authenticate it at all, so it
+    # must never be reachable; the web service talks to it only through
+    # NodeUI's JWT-checked /tequilapi/ proxy.
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    command: ["python3", "-m", "mystnode.supervisor"]
+    environment:
+      # Written as the NodeUI password (bcrypt, data/node/nodeui-pass).
+      MYSTNODE_PASSWORD: ${APP_PASSWORD}
+    volumes:
+      - ${APP_DATA_DIR}/data/node:/var/lib/mysterium-node
+      # Read-only: only the dashboard records terms acceptance; the node just
+      # waits for the marker file before it starts myst.
+      - ${APP_DATA_DIR}/data/web:/umbrel-web:ro
+
+  web:
+    image: ghcr.io/cooperwang-py/mystnode:1.39.7
+    user: "1000:1000"
+    restart: on-failure
+    init: true
+    # The node is on the host network; this resolves to the same gateway
+    # address NodeUI binds to.
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    command: ["python3", "-m", "mystnode.web"]
+    environment:
+      # Used to obtain NodeUI tokens; the browser never holds a node credential.
+      MYSTNODE_PASSWORD: ${APP_PASSWORD}
+    volumes:
+      - ${APP_DATA_DIR}/data/web:/data
+      - ${APP_DATA_DIR}/data/node/logs:/node-logs:ro

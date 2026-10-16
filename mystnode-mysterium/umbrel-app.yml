@@ -1,0 +1,115 @@
+# umbrelOS 2.0 only: the dashboard relies on umbrelOS 2.0 routing (umbreld
+# proxies and polls widgets from the host, no app_proxy container), which its
+# source gate checks, and on `storage`.
+# umbreld accepts the app when semver.gte(<os version>, manifestVersion).
+manifestVersion: "2.0.0"
+# `id` MUST equal this directory's name AND start with the store id
+# (`mystnode`) — umbrelOS silently drops apps that fail
+# `app.id.startsWith(store.id)`.
+id: mystnode-mysterium
+storage:
+  dataRoot: data
+category: networking
+name: Mysterium Node
+# umbrelOS decides whether to offer an update by comparing ONLY this version.
+# Bump it in the same commit as (or after) the new image digest in
+# docker-compose.yml, never before: a device that polls the store in between
+# installs the old image under the new version and is never offered it again.
+version: "1.39.7"
+tagline: Earn MYST by sharing your bandwidth on the Mysterium Network
+description: >-
+  YOUR UMBREL BECOMES AN EXIT NODE. Other people's VPN, B2B data-transfer and
+  scraping traffic leaves the internet through your home IP address, and the node
+  changes the host's firewall (iptables) and network interfaces to do it. Read
+  Mysterium's terms before installing; the node does not start until you accept
+  them in the app.
+
+
+  Mysterium Node runs the official Mysterium Network node and pays you in MYST
+  for the bandwidth you share. The app's dashboard covers everything a node
+  operator needs:
+
+
+  - Status and setup: accept the terms, register your node identity, and see
+  version, NAT type, quality and uptime.
+
+  - Services: switch the public VPN, WireGuard, B2B data-transfer and B2B
+  scraping services on and off.
+
+  - Earnings and payouts: unsettled and lifetime earnings, a 30-day chart,
+  settle on demand, and set the wallet your MYST is paid out to.
+
+  - Sessions and traffic: who used your node, for how long and how much data.
+
+  - mystnodes.com: claim the node to your my.mystnodes.com account.
+
+  - Logs and settings: node logs with level filters, UDP port range, bandwidth
+  limit and log level.
+
+  - A home-screen widget with node status and earnings.
+
+
+  The full Mysterium NodeUI is one click away and already signed in. The node
+  runs with host networking, as Mysterium requires for WireGuard and NAT
+  traversal. Earnings are paid in MYST to the payout wallet you set.
+
+
+  Umbrel shows a NodeUI password (username myst); you only need it if NodeUI
+  ever asks you to sign in.
+releaseNotes: ""
+developer: Mysterium Network
+website: https://mysterium.network
+dependencies: []
+repo: https://github.com/CooperWaNg-py/mystnode
+support: https://github.com/CooperWaNg-py/mystnode/issues
+port: 4451
+# Community stores use `icon` and `gallery` verbatim; the default fallback
+# (getumbrel.github.io/umbrel-apps-gallery/<id>/...) 404s for custom repos, so
+# both MUST be absolute URLs.
+# Assets live in this repo under assets/; raw.githubusercontent serves them.
+icon: https://raw.githubusercontent.com/CooperWaNg-py/mystnode/main/assets/icon.svg
+gallery:
+  - https://raw.githubusercontent.com/CooperWaNg-py/mystnode/main/assets/gallery/1.jpg
+  - https://raw.githubusercontent.com/CooperWaNg-py/mystnode/main/assets/gallery/2.jpg
+  - https://raw.githubusercontent.com/CooperWaNg-py/mystnode/main/assets/gallery/3.jpg
+# The dashboard lives under /umbrel/; every other path is the stock NodeUI.
+path: "/umbrel/"
+# APP_PASSWORD doubles as the NodeUI password (the supervisor keeps
+# data/node/nodeui-pass in sync with it), so Umbrel can show it.
+deterministicPassword: true
+defaultUsername: "myst"
+# Left out of Umbrel backups: myst's logs and the NodeUI bundle it downloads,
+# both regenerated. The identity keystore and config stay in the backup.
+backupIgnore:
+  - data/node/logs/*
+  - data/node/nodeui/*
+widgets:
+  # `four-stats` requires EXACTLY 4 items. `refresh` must be a non-empty string:
+  # umbreld calls ms(widgetData.refresh) unconditionally and throws on
+  # undefined, which fails the whole widget query. `endpoint` is
+  # <service>:<port>/<path> with NO scheme — umbreld fetches it server-side by
+  # container IP, bypassing app_proxy.
+  - id: "status"
+    type: "four-stats"
+    refresh: "30s"
+    endpoint: "web:8080/umbrel/widgets/stats"
+    link: ""
+    example:
+      type: "four-stats"
+      link: ""
+      refresh: "30s"
+      items:
+        - title: "Node"
+          text: "Online"
+          subtext: "1.39.7"
+        - title: "Services"
+          text: "3/4"
+          subtext: "running"
+        - title: "Unsettled"
+          text: "1.234"
+          subtext: "MYST"
+        - title: "Lifetime"
+          text: "12.500"
+          subtext: "MYST"
+submitter: CooperWaNg-py
+submission: https://github.com/CooperWaNg-py/mystnode

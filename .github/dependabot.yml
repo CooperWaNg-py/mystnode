@@ -1,0 +1,11 @@
+# The base image is pinned by index digest (image/Dockerfile), so Mysterium's
+# rebuilds of mysteriumnetwork/myst:1.39.7-alpine -- Alpine security fixes --
+# never arrive on their own. Dependabot opens a PR when the pinned digest has a
+# newer rebuild (or a newer myst tag appears); merging it rebuilds and
+# republishes the image through CI.
+version: 2
+updates:
+  - package-ecosystem: docker
+    directory: /image
+    schedule:
+      interval: weekly

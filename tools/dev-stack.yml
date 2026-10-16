@@ -1,0 +1,72 @@
+# Standalone compose stack for running Mysterium Node OUTSIDE umbrelOS.
+#
+# This is NOT the Umbrel package -- mystnode-mysterium/docker-compose.yml is. Use
+# this for local development before the image is published and the community app
+# store is wired up. Differences from the real package:
+#
+#   * no `app_proxy` service (umbrelOS injects that image; compose cannot resolve it
+#     here), so `web` publishes its port directly and has NO authentication
+#   * the dashboard's source gate is off (MYSTNODE_TRUST_ANY_SOURCE), because
+#     published-port traffic does not arrive from the bridge gateway umbreld uses
+#   * builds the image locally instead of pulling a digest-pinned multi-arch image
+#   * ${APP_DATA_DIR}/data is replaced by a plain ./appdata bind mount and
+#     ${APP_PASSWORD} by a fixed dev password
+#
+# Host networking is required (WireGuard, NAT traversal), so this needs a Linux
+# Docker host or a VM-backed runtime such as OrbStack or Colima; on those, the
+# node's interfaces and iptables rules live inside the VM.
+#
+# NodeUI binds to whatever host.docker.internal resolves to. On Linux Docker
+# `host-gateway` is the docker0 address, a host interface, as on umbrelOS. On
+# Colima, OrbStack and Docker Desktop it is the Mac instead, which the VM cannot
+# bind ("cannot assign requested address"), so point it at the VM's docker0:
+#     export MYSTNODE_DEV_GATEWAY=172.17.0.1
+#
+# Usage, from the repo root:
+#     mkdir -p appdata/node/logs appdata/web
+#     sudo chown -R 1000:1000 appdata/web appdata/node/logs
+#     docker compose -f tools/dev-stack.yml up -d --build
+#     docker compose -f tools/dev-stack.yml logs -f node
+#     # browse to http://localhost:8080/umbrel/
+
+name: mystnode-dev
+
+services:
+  node:
+    build: ../image
+    image: mystnode:dev
+    restart: on-failure
+    init: true
+    stop_grace_period: 30s
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    extra_hosts:
+      - host.docker.internal:${MYSTNODE_DEV_GATEWAY:-host-gateway}
+    command: ["python3", "-m", "mystnode.supervisor"]
+    environment:
+      MYSTNODE_PASSWORD: devpassword-change-me
+    volumes:
+      - ../appdata/node:/var/lib/mysterium-node
+      - ../appdata/web:/umbrel-web:ro
+
+  web:
+    image: mystnode:dev
+    user: "1000:1000"
+    restart: on-failure
+    init: true
+    extra_hosts:
+      - host.docker.internal:${MYSTNODE_DEV_GATEWAY:-host-gateway}
+    command: ["python3", "-m", "mystnode.web"]
+    ports:
+      # Published directly because there is no app_proxy here. On umbrelOS the
+      # proxy owns the host port and adds authentication; this is LAN-open.
+      - "8080:8080"
+    environment:
+      MYSTNODE_PASSWORD: devpassword-change-me
+      MYSTNODE_TRUST_ANY_SOURCE: "1"
+    volumes:
+      - ../appdata/web:/data
+      - ../appdata/node/logs:/node-logs:ro

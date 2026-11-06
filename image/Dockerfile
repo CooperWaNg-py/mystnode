@@ -17,7 +17,7 @@
 #
 # The base is pinned by its index digest too, from:
 #   docker buildx imagetools inspect mysteriumnetwork/myst:1.39.7-alpine
-FROM mysteriumnetwork/myst:1.39.7-alpine@sha256:9b3cbf9aab301f618be7c2f88b0bcaa0a19ccb6c09c0527dfa5ccad3490c59a6
+FROM mysteriumnetwork/myst:1.39.9-alpine@sha256:f89347d244efeeaf29555e876404cf8aebcd41561c5cbed06c365ba64beb8564
 # python3 (alpine main, 3.12) runs the supervisor and dashboard; py3-bcrypt
 # (community, 4.3.0) hashes the NodeUI password the way myst expects.
 RUN apk add --no-cache python3 py3-bcrypt
